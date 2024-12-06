@@ -47,7 +47,11 @@ export default function RegisterForm({ entity = "/user" }: RegisterFormParams) {
     });
 
     if (err) {
-      setErrors(err.errors);
+      if (err.errors) {
+        setErrors(err.errors);
+      } else {
+        alert(err);
+      }
       return;
     }
 
