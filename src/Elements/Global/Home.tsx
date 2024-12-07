@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import fetchData from "./GlobalFunction";
-import "../../assets/css/tailwind.css";
+import fetchData, { MySwal } from "./GlobalFunction";
+import { useNavigate } from "react-router-dom";
+
 interface Errors {
   email?: string;
   name?: string;
@@ -8,11 +9,19 @@ interface Errors {
   password_confirmation?: string;
 }
 
-interface RegisterFormParams {
-  entity?: string;
+type EntityProps = {
+  entitypath: string;
+  apiEndpoint: string;
+  entityName: string;
+};
+
+interface FormParams {
+  entityProps: EntityProps;
 }
 
-export default function RegisterForm({ entity = "/user" }: RegisterFormParams) {
+export function RegisterForm({ entityProps }: FormParams) {
+  const { entitypath, apiEndpoint, entityName } = entityProps;
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -22,24 +31,9 @@ export default function RegisterForm({ entity = "/user" }: RegisterFormParams) {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    // Validation before calling the API
-    // const validationErrors: Errors = {};
-
-    // if (!email) validationErrors.email = "Email is required";
-    // if (!name) validationErrors.name = "Name is required";
-    // if (!password) validationErrors.password = "Password is required";
-    // if (password !== password_confirmation)
-    //   validationErrors.password_confirmation = "Passwords do not match";
-
-    // if (Object.keys(validationErrors).length > 0) {
-    //   setErrors(validationErrors);
-    //   return;
-    // }
-
-    // If no validation errors, proceed with the API call
     const [err, data] = await fetchData({
       method: "POST",
-      endpoint: `${entity}/register`,
+      endpoint: `${apiEndpoint}/register`,
       data: { email, name, password, password_confirmation },
       headers: {
         "Content-Type": "application/json",
@@ -55,16 +49,134 @@ export default function RegisterForm({ entity = "/user" }: RegisterFormParams) {
       return;
     }
 
-    console.log(data);
+    if (data[entityName]) {
+      setEmail("");
+      setName("");
+      setPassword("");
+      setPasswordConfirmation("");
+      setErrors({});
+
+      MySwal.fire({
+        title: "Registration Successful",
+        icon: "success",
+        confirmButtonText: "OK",
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate(`${entitypath !== "/" ? entitypath : ""}/login`);
+        }
+      });
+    }
   };
 
+  return (
+    <FormLayout
+      title="Register"
+      email={email}
+      setEmail={setEmail}
+      name={name}
+      setName={setName}
+      password={password}
+      setPassword={setPassword}
+      password_confirmation={password_confirmation}
+      setPasswordConfirmation={setPasswordConfirmation}
+      errors={errors}
+      handleSubmit={handleSubmit}
+      buttonText="Register"
+    />
+  );
+}
+
+export function LoginForm({ entityProps }: FormParams) {
+  const { apiEndpoint, entitypath, entityName } = entityProps;
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [errors, setErrors] = useState<Errors>({});
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const [err, data] = await fetchData({
+      method: "POST",
+      endpoint: `${apiEndpoint}/login`,
+      data: { email, password },
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (err) {
+      if (err.errors) {
+        setErrors(err.errors);
+      } else {
+        alert(err);
+      }
+      return;
+    }
+
+    if (data.token) {
+      const token = data.token;
+      localStorage.setItem(`${entityName}_token`, token);
+      MySwal.fire({
+        title: "Login Successful",
+        icon: "success",
+        confirmButtonText: "OK",
+      }).then(() => {
+        navigate(`${entitypath !== "/" ? entitypath : ""}/dashboard`);
+      });
+    }
+  };
+
+  return (
+    <FormLayout
+      title="Login"
+      email={email}
+      setEmail={setEmail}
+      password={password}
+      setPassword={setPassword}
+      errors={errors}
+      handleSubmit={handleSubmit}
+      buttonText="Login"
+    />
+  );
+}
+
+interface FormLayoutProps {
+  title: string;
+  email: string;
+  setEmail: React.Dispatch<React.SetStateAction<string>>;
+  name?: string;
+  setName?: React.Dispatch<React.SetStateAction<string>>;
+  password: string;
+  setPassword: React.Dispatch<React.SetStateAction<string>>;
+  password_confirmation?: string;
+  setPasswordConfirmation?: React.Dispatch<React.SetStateAction<string>>;
+  errors: Errors;
+  handleSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  buttonText: string;
+}
+
+const FormLayout: React.FC<FormLayoutProps> = ({
+  title,
+  email,
+  setEmail,
+  name,
+  setName,
+  password,
+  setPassword,
+  password_confirmation,
+  setPasswordConfirmation,
+  errors,
+  handleSubmit,
+  buttonText,
+}) => {
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <form
         className="bg-white p-6 rounded-lg shadow-md w-full max-w-sm"
-        onSubmit={(e) => handleSubmit(e)}
+        onSubmit={handleSubmit}
       >
-        <h2 className="text-2xl font-semibold text-center mb-6">Register</h2>
+        <h2 className="text-2xl font-semibold text-center mb-6">{title}</h2>
 
         {/* Email Field */}
         <div className="mb-4">
@@ -82,9 +194,8 @@ export default function RegisterForm({ entity = "/user" }: RegisterFormParams) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className={`mt-2 p-3 w-full border rounded-md ${
-              errors.email ? "border-red-500" : "border-gray-300"
-            } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+            className={`mt-2 p-3 w-full border rounded-md ${errors.email ? "border-red-500" : "border-gray-300"
+              } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
           />
           {errors.email && (
             <p className="text-xs text-red-500">{errors.email}</p>
@@ -92,27 +203,30 @@ export default function RegisterForm({ entity = "/user" }: RegisterFormParams) {
         </div>
 
         {/* Name Field */}
-        <div className="mb-4">
-          <label
-            htmlFor="name"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Name
-          </label>
-          <input
-            type="text"
-            name="name"
-            id="name"
-            placeholder="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
-            className={`mt-2 p-3 w-full border rounded-md ${
-              errors.name ? "border-red-500" : "border-gray-300"
-            } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
-          />
-          {errors.name && <p className="text-xs text-red-500">{errors.name}</p>}
-        </div>
+        {setName && name !== undefined && (
+          <div className="mb-4">
+            <label
+              htmlFor="name"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Name
+            </label>
+            <input
+              type="text"
+              name="name"
+              id="name"
+              placeholder="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className={`mt-2 p-3 w-full border rounded-md ${errors.name ? "border-red-500" : "border-gray-300"
+                } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+            />
+            {errors.name && (
+              <p className="text-xs text-red-500">{errors.name}</p>
+            )}
+          </div>
+        )}
 
         {/* Password Field */}
         <div className="mb-4">
@@ -130,9 +244,8 @@ export default function RegisterForm({ entity = "/user" }: RegisterFormParams) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className={`mt-2 p-3 w-full border rounded-md ${
-              errors.password ? "border-red-500" : "border-gray-300"
-            } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+            className={`mt-2 p-3 w-full border rounded-md ${errors.password ? "border-red-500" : "border-gray-300"
+              } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
           />
           {errors.password && (
             <p className="text-xs text-red-500">{errors.password}</p>
@@ -140,33 +253,34 @@ export default function RegisterForm({ entity = "/user" }: RegisterFormParams) {
         </div>
 
         {/* Confirm Password Field */}
-        <div className="mb-4">
-          <label
-            htmlFor="password_confirmation"
-            className="block text-sm font-medium text-gray-700"
-          >
-            Confirm Password
-          </label>
-          <input
-            type="password"
-            name="password_confirmation"
-            id="password_confirmation"
-            placeholder="Confirm Password"
-            value={password_confirmation}
-            onChange={(e) => setPasswordConfirmation(e.target.value)}
-            required
-            className={`mt-2 p-3 w-full border rounded-md ${
-              errors.password_confirmation
+        {setPasswordConfirmation && password_confirmation !== undefined && (
+          <div className="mb-4">
+            <label
+              htmlFor="password_confirmation"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Confirm Password
+            </label>
+            <input
+              type="password"
+              name="password_confirmation"
+              id="password_confirmation"
+              placeholder="Confirm Password"
+              value={password_confirmation}
+              onChange={(e) => setPasswordConfirmation(e.target.value)}
+              required
+              className={`mt-2 p-3 w-full border rounded-md ${errors.password_confirmation
                 ? "border-red-500"
                 : "border-gray-300"
-            } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
-          />
-          {errors.password_confirmation && (
-            <p className="text-xs text-red-500">
-              {errors.password_confirmation}
-            </p>
-          )}
-        </div>
+                } focus:outline-none focus:ring-2 focus:ring-indigo-500`}
+            />
+            {errors.password_confirmation && (
+              <p className="text-xs text-red-500">
+                {errors.password_confirmation}
+              </p>
+            )}
+          </div>
+        )}
 
         {/* Submit Button */}
         <div className="mt-6">
@@ -174,10 +288,10 @@ export default function RegisterForm({ entity = "/user" }: RegisterFormParams) {
             type="submit"
             className="w-full py-3 px-4 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
           >
-            Submit
+            {buttonText}
           </button>
         </div>
       </form>
     </div>
   );
-}
+};
