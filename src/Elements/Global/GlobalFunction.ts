@@ -11,7 +11,9 @@ interface FetchDataParams {
   endpoint: string;
   data?: {};
   query?: {};
-  headers?: {};
+  headers?: {
+    [key: string]: any;
+  };
 }
 
 export default async function fetchData({
@@ -24,10 +26,14 @@ export default async function fetchData({
   const baseUrl = import.meta.env.VITE_API_DOMAIN || "https://yourapi.com";
 
   const queryString = query
-    ? "?" + new URLSearchParams(query as Record<string, string>).toString()
+    ? `?${new URLSearchParams(query as Record<string, string>).toString()}`
     : "";
 
-  const url: string = baseUrl + endpoint + queryString;
+  const entityName: string = endpoint.split('/')[1];
+  if (localStorage.getItem(`${entityName}_token`)) {
+    headers['Authorization'] = `Bearer ${localStorage.getItem(`${entityName}_token`)}`;
+  }
+  const url: string = `${baseUrl}${endpoint}${queryString}`;
   try {
     // Make the API request using axios
     const response = await axios({

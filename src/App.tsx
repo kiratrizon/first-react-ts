@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { RegisterForm, LoginForm } from "./Elements/Global/Home";
+import { RegisterForm, LoginForm, Dashboard } from "./Elements/Global/Home";
 function App() {
   const entities: {
     [key: string]: {
@@ -25,12 +25,14 @@ function App() {
 
         {/* For User Route */}
         <Route path={entities.user.entitypath}>
+          <Route index element={<Dashboard entityProps={entities.user} />} />
           <Route path="register" element={<RegisterForm entityProps={entities.user} />} />
           <Route path="login" element={<LoginForm entityProps={entities.user} />} />
         </Route>
 
         {/* For Admin Route */}
         <Route path={entities.admin.entitypath}>
+          <Route index element={<Dashboard entityProps={entities.admin} />} />
           <Route path="register" element={<RegisterForm entityProps={entities.admin} />} />
           <Route path="login" element={<LoginForm entityProps={entities.admin} />} />
         </Route>

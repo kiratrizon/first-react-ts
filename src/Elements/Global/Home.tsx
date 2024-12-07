@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import fetchData, { MySwal } from "./GlobalFunction";
 import { useNavigate } from "react-router-dom";
 
@@ -22,6 +22,12 @@ interface FormParams {
 export function RegisterForm({ entityProps }: FormParams) {
   const { entitypath, apiEndpoint, entityName } = entityProps;
   const navigate = useNavigate();
+  useEffect(() => {
+    const localtoken = localStorage.getItem(`${entityName}_token`);
+    if (localtoken) {
+      navigate(`${entitypath !== "/" ? entitypath : ""}/`);
+    }
+  }, [entityName, entitypath, navigate]);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -92,18 +98,29 @@ export function LoginForm({ entityProps }: FormParams) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
-
+  useEffect(() => {
+    const localtoken = localStorage.getItem(`${entityName}_token`);
+    if (localtoken) {
+      navigate(`${entitypath !== "/" ? entitypath : ""}/`);
+    }
+  }, [entityName, entitypath, navigate]);
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const [err, data] = await fetchData({
+    const fetchDataParams: {
+      method: string;
+      endpoint: string;
+      data: { email: string; password: string };
+      headers: { "Content-Type": string };
+    } = {
       method: "POST",
       endpoint: `${apiEndpoint}/login`,
       data: { email, password },
       headers: {
         "Content-Type": "application/json",
       },
-    });
+    };
+    const [err, data] = await fetchData(fetchDataParams);
 
     if (err) {
       if (err.errors) {
@@ -113,7 +130,6 @@ export function LoginForm({ entityProps }: FormParams) {
       }
       return;
     }
-
     if (data.token) {
       const token = data.token;
       localStorage.setItem(`${entityName}_token`, token);
@@ -122,7 +138,7 @@ export function LoginForm({ entityProps }: FormParams) {
         icon: "success",
         confirmButtonText: "OK",
       }).then(() => {
-        navigate(`${entitypath !== "/" ? entitypath : ""}/dashboard`);
+        navigate(`${entitypath !== "/" ? entitypath : ""}/`);
       });
     }
   };
@@ -295,3 +311,22 @@ const FormLayout: React.FC<FormLayoutProps> = ({
     </div>
   );
 };
+
+export function Dashboard({ entityProps }: FormParams) {
+  const { entityName, entitypath } = entityProps;
+  const navigate = useNavigate();
+  let newPath: string = entitypath == '/' ? '' : entitypath
+  const token = localStorage.getItem(`${entityName}_token`);
+  const loginPath: string = `${newPath}/login`;
+  useEffect(() => {
+    if (!token) {
+      navigate(loginPath);
+    }
+  }, [loginPath, token, navigate]);
+  return (
+    <div>
+      <h1>Welcome to {entityName} Dashboard</h1>
+      {/* Your dashboard content here */}
+    </div>
+  )
+}
